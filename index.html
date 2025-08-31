@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>百家樂分析器（線上版）</title>
+<style>
+  :root { --bg:#0f1220; --panel:#161a2e; --text:#e8ecff; --muted:#9aa3c7; --accent:#7aa2ff; --danger:#ff6b6b; --ok:#00d68f; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Arial, sans-serif; margin:0; }
+  h1 { font-size: 1.25rem; margin: 0; }
+  .app { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .row { display: grid; gap: 12px; }
+  @media (min-width: 980px) { .row { grid-template-columns: 1.1fr 0.9fr; } }
+  .card { background: var(--panel); border-radius: 12px; padding: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+  .card h2 { font-size: 1.05rem; margin: 0 0 8px; color: var(--accent); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button {
+    background: #1f2442; color: var(--text); border: 1px solid #2b3362; border-radius: 10px;
+    padding: 10px 12px; cursor: pointer; font-size: 0.95rem; user-select: none;
+    transition: transform .02s ease, background .2s ease, border-color .2s ease;
+  }
+  button:hover { background: #262c54; }
+  button:active { transform: translateY(1px); }
+  .bP { background: #1c2f5e; border-color: #2f4ea8; }
+  .bB { background: #5e1c1c; border-color: #a82f2f; }
+  .bT { background: #185d49; border-color: #2b9a7b; }
+  .bUndo { background: #3b2b1a; border-color: #7b5a2b; }
+  .bReset { background: #462026; border-color: #8b3b46; }
+  .switch { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--muted); }
+  input[type="checkbox"] { width: 18px; height: 18px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { background: #12162a; border: 1px solid #22294f; border-radius: 10px; padding: 8px; }
+  .stat .v { font-size: 1.2rem; font-weight: 700; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  .roads { display: grid; grid-template-rows: auto 1fr; gap: 8px; height: 420px; }
+  .grid { background: #0c1022; border: 1px solid #22294f; border-radius: 10px; overflow: auto; padding: 6px; }
+  .bigroad { display: grid; grid-auto-flow: column; grid-auto-columns: max-content; gap: 2px; align-items: start; }
+  .col { display: grid; grid-template-rows: repeat(6, 32px); gap: 2px; }
+  .cell { width: 32px; height: 32px; border-radius: 6px; background: #141935; display: grid; place-items: center; position: relative; border: 1px solid #202851; }
+  .chip { width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); }
+  .P .chip { background: #2b61ff; }   /* Player: blue */
+  .B .chip { background: #ff3b3b; }   /* Banker: red */
+  .T .chip { background: #00c19a; }   /* Tie: green */
+  .pairTag { position: absolute; bottom: -2px; right: -2px; font-size: 0.65rem; background: rgba(255,255,255,.12); padding: 0 4px; border-radius: 6px; border: 1px solid rgba(255,255,255,.2); }
+  .gridFooter { color: var(--muted); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+  .list { display: grid; gap: 8px; max-height: 320px; overflow: auto; }
+  .item { display: flex; justify-content: space-between; align-items: center; background: #12162a; border: 1px solid #22294f; border-radius: 10px; padding: 8px; }
+  .note { font-size: .82rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar card">
+    <h1>百家樂分析器（線上版）</h1>
+    <div style="flex:1"></div>
+    <label class="switch"><input id="savelocal" type="checkbox" checked>自動儲存</label>
+    <button id="exportJson" title="匯出 JSON">匯出</button>
+    <input id="importFile" style="display:none" type="file" accept=".json,application/json">
+    <button id="importJson" title="匯入 JSON">匯入</button>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>快速記錄</h2>
+      <div class="toolbar" style="gap:10px; margin-bottom:8px;">
+        <button id="btnP" class="bP">玩家 (P)</button>
+        <button id="btnB" class="bB">莊家 (B)</button>
+        <button id="btnT" class="bT">和局 (T)</button>
+        <span class="switch"><input id="ppair" type="checkbox">玩家對</span>
+        <span class="switch"><input id="bpair" type="checkbox">莊家對</span>
+        <button id="undo" class="bUndo">復原 (Z)</button>
+        <button id="redo" class="bUndo">重做 (Y)</button>
+        <button id="reset" class="bReset">重設</button>
+      </div>
+      <div class="roads">
+        <div class="gridFooter">
+          <div class="note">Big Road（大路）即時落子；和局疊加在上手格子，連莊/連閒自動計算。</div>
+          <div class="note">快捷鍵：P/B/T、Z（復原）、Y（重做）。</div>
+        </div>
+        <div id="bigroad" class="grid">
+          <div id="bigroadGrid" class="bigroad"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>統計與參考</h2>
+      <div class="stats">
+        <div class="stat"><div>局數</div><div id="sRounds" class="v">0</div></div>
+        <div class="stat"><div>玩家勝</div><div id="sP" class="v">0</div></div>
+        <div class="stat"><div>莊家勝</div><div id="sB" class="v">0</div></div>
+        <div class="stat"><div>和局</div><div id="sT" class="v">0</div></div>
+        <div class="stat"><div>最大連莊/閒</div><div id="sLongest" class="v mono">0 / 0</div></div>
+        <div class="stat"><div>玩家對 / 莊家對</div><div id="sPairs" class="v">0 / 0</div></div>
+      </div>
+      <div style="margin-top:10px;" class="note">
+        <b>理論期望（8 副牌、莊 5% 抽水、和 8:1）：</b>
+        莊家（排除和）約 50.68%，抽水後 EV ≈ -1.06%；玩家 EV ≈ -1.24%；和局（8:1）EV ≈ -14.36%。實際以桌規為準。
+      </div>
+      <div style="margin-top:10px;" class="note">
+        本工具僅供娛樂與紀錄，不保證獲利。請量力而為並遵守所在地法律與場館規範。
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>資料管理</h2>
+    <div class="toolbar">
+      <button id="exportCSV">匯出 CSV</button>
+      <button id="copyShare">複製分享連結（含資料）</button>
+      <button id="clearStorage">清除本機資料</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const state = { rounds: [], undoStack: [], redoStack: [] };
+  const els = {
+    sRounds: q('#sRounds'), sP: q('#sP'), sB: q('#sB'), sT: q('#sT'),
+    sLongest: q('#sLongest'), sPairs: q('#sPairs'),
+    bigroadGrid: q('#bigroadGrid'), ppair: q('#ppair'), bpair: q('#bpair'),
+    saveLocal: q('#savelocal'), importFile: q('#importFile'),
+  };
+
+  loadFromHash(); loadLocal(); bindUI(); renderAll();
+
+  function q(s, r=document){ return r.querySelector(s); }
+  function create(tag, cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
+
+  function bindUI(){
+    on('#btnP','click',()=>add('P')); on('#btnB','click',()=>add('B')); on('#btnT','click',()=>add('T'));
+    on('#undo','click',undo); on('#redo','click',redo); on('#reset','click',resetAll);
+    window.addEventListener('keydown', e=>{
+      const k=e.key.toLowerCase();
+      if(k==='p') add('P'); else if(k==='b') add('B'); else if(k==='t') add('T');
+      else if(k==='z') undo(); else if(k==='y') redo();
+    });
+    on('#exportJson','click', exportJSON);
+    on('#importJson','click', ()=> els.importFile.click());
+    els.importFile.addEventListener('change', handleImport);
+    on('#exportCSV','click', exportCSV);
+    on('#copyShare','click', copyShare);
+    on('#clearStorage','click', ()=>{ localStorage.removeItem('baccarat_state_v1'); alert('已清除本機資料'); });
+    function on(sel,ev,fn){ q(sel).addEventListener(ev,fn); }
+  }
+
+  function add(r){
+    const rec = { r, pp: !!els.ppair.checked, bp: !!els.bpair.checked, t: Date.now() };
+    state.rounds.push(rec); state.undoStack.push({type:'add',rec}); state.redoStack.length=0;
+    saveLocal(); renderAll();
+  }
+  function undo(){ if(!state.rounds.length) return; const rec=state.rounds.pop(); state.redoStack.push(rec); state.undoStack.push({type:'del',rec}); saveLocal(); renderAll(); }
+  function redo(){ if(!state.redoStack.length) return; const rec=state.redoStack.pop(); state.rounds.push(rec); state.undoStack.push({type:'readd',rec}); saveLocal(); renderAll(); }
+  function resetAll(){ if(!confirm('確定要重設所有記錄？')) return; state.rounds.length=0; state.undoStack.length=0; state.redoStack.length=0; saveLocal(); renderAll(); }
+
+  function saveLocal(){ if(!els.saveLocal.checked) return; try{ localStorage.setItem('baccarat_state_v1', JSON.stringify(state.rounds)); }catch(e){} }
+  function loadLocal(){ try{ const raw=localStorage.getItem('baccarat_state_v1'); if(raw){ const arr=JSON.parse(raw); if(Array.isArray(arr)) state.rounds=arr; } }catch(e){} }
+  function loadFromHash(){ const h=location.hash.replace(/^#/,''); if(!h) return; try{ const json=atob(decodeURIComponent(h)); const arr=JSON.parse(json); if(Array.isArray(arr)) state.rounds=arr; }catch(e){} }
+
+  function renderAll(){
+    const counts={P:0,B:0,T:0,pp:0,bp:0}; let longestP=0,longestB=0; let cur=null,curLen=0; const streaks=[];
+    state.rounds.forEach(rec=>{
+      counts[rec.r]++; if(rec.pp) counts.pp++; if(rec.bp) counts.bp++;
+      const k=rec.r; if(k==='T') return;
+      if(cur===k){ curLen++; } else { if(cur){ streaks.push({side:cur,len:curLen}); if(cur==='P') longestP=Math.max(longestP,curLen); else longestB=Math.max(longestB,curLen); } cur=k; curLen=1; }
+    });
+    if(cur){ streaks.push({side:cur,len:curLen}); if(cur==='P') longestP=Math.max(longestP,curLen); else longestB=Math.max(longestB,curLen); }
+
+    els.sRounds.textContent = state.rounds.length;
+    els.sP.textContent = counts.P; els.sB.textContent = counts.B; els.sT.textContent = counts.T;
+    els.sPairs.textContent = counts.pp + ' / ' + counts.bp; els.sLongest.textContent = longestP + ' / ' + longestB;
+
+    renderBigRoad();
+  }
+
+  function renderBigRoad(){
+    const grid = els.bigroadGrid; grid.innerHTML='';
+    const cols=[]; let col=0,row=0; let lastColor=null;
+    function ensureCol(i){ while(cols.length<=i) cols.push(Array(6).fill(null)); }
+
+    state.rounds.forEach(rec=>{
+      if(rec.r==='T'){ if(col>=0){ ensureCol(col); if(row>=0 && cols[col][row]) cols[col][row].ties=(cols[col][row].ties||0)+1; } return; }
+      const color=rec.r;
+      if(lastColor===null){ col=0; row=0; ensureCol(col); cols[col][row]={r:color,ties:0,pp:rec.pp,bp:rec.bp}; }
+      else if(color===lastColor){
+        if(row<5 && !cols[col][row+1]){ row+=1; ensureCol(col); cols[col][row]={r:color,ties:0,pp:rec.pp,bp:rec.bp}; }
+        else { col+=1; ensureCol(col); let r=0; while(r<6 && cols[col][r]) r++; if(r>=6){ col+=1; ensureCol(col); r=0; } row=r; cols[col][row]={r:color,ties:0,pp:rec.pp,bp:rec.bp}; }
+      } else {
+        col+=1; ensureCol(col); row=0; while(cols[col][0]){ col+=1; ensureCol(col); }
+        cols[col][row]={r:color,ties:0,pp:rec.pp,bp:rec.bp};
+      }
+      lastColor=color;
+    });
+
+    cols.forEach(column=>{
+      const colDiv=create('div','col');
+      column.forEach(cell=>{
+        const c=create('div','cell');
+        if(cell){ c.classList.add(cell.r); const dot=create('div','chip'); c.appendChild(dot);
+          if(cell.ties>0){ const tie=create('div','pairTag'); tie.textContent='和×'+cell.ties; tie.style.background='rgba(0,255,170,.15)'; c.appendChild(tie); }
+          if(cell.pp||cell.bp){ const pair=create('div','pairTag'); pair.textContent=(cell.pp?'P':'')+(cell.bp?'B':'')+'對'; c.appendChild(pair); }
+        }
+        colDiv.appendChild(c);
+      });
+      grid.appendChild(colDiv);
+    });
+  }
+
+  function exportJSON(){ const data=JSON.stringify(state.rounds,null,2); download('baccarat_data.json',data,'application/json'); }
+  function handleImport(ev){
+    const f=ev.target.files&&ev.target.files[0]; if(!f) return;
+    const reader=new FileReader(); reader.onload=e=>{
+      try{ const arr=JSON.parse(String(e.target.result)); if(Array.isArray(arr)){ state.rounds=arr; saveLocal(); renderAll(); alert('匯入完成！'); } else alert('檔案內容格式不正確'); }
+      catch(err){ alert('讀取失敗：'+err.message); }
+    }; reader.readAsText(f);
+  }
+  function exportCSV(){
+    const header='index,time,result,player_pair,banker_pair\n';
+    const rows=state.rounds.map((r,i)=>[i+1,new Date(r.t).toISOString(),r.r,r.pp?1:0,r.bp?1:0].join(','));
+    const csv=header+rows.join('\n'); download('baccarat_data.csv',csv,'text/csv');
+  }
+  function copyShare(){
+    const json=JSON.stringify(state.rounds); const hash=encodeURIComponent(btoa(json));
+    const url=location.origin+location.pathname+'#'+hash;
+    navigator.clipboard.writeText(url).then(()=>alert('已複製分享連結（資料僅存在網址中，不上傳伺服器）'),()=>alert('無法複製，請手動選取網址：\n'+url));
+  }
+  function download(name,content,mime){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type:mime})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1500); }
+
+  q('#exportCSV').addEventListener('click', exportCSV);
+  q('#exportJson').addEventListener('click', exportJSON);
+  q('#importJson').addEventListener('click', ()=> els.importFile.click());
+  q('#copyShare').addEventListener('click', copyShare);
+
+})();
+</script>
+</body>
+</html>
