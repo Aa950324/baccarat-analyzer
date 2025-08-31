@@ -39,9 +39,9 @@
   .col { display: grid; grid-template-rows: repeat(6, 32px); gap: 2px; }
   .cell { width: 32px; height: 32px; border-radius: 6px; background: #141935; display: grid; place-items: center; position: relative; border: 1px solid #202851; }
   .chip { width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); }
-  .P .chip { background: #2b61ff; }   /* Player: blue */
-  .B .chip { background: #ff3b3b; }   /* Banker: red */
-  .T .chip { background: #00c19a; }   /* Tie: green */
+  .P .chip { background: #2b61ff; }
+  .B .chip { background: #ff3b3b; }
+  .T .chip { background: #00c19a; }
   .pairTag { position: absolute; bottom: -2px; right: -2px; font-size: 0.65rem; background: rgba(255,255,255,.12); padding: 0 4px; border-radius: 6px; border: 1px solid rgba(255,255,255,.2); }
   .gridFooter { color: var(--muted); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
   .list { display: grid; gap: 8px; max-height: 320px; overflow: auto; }
@@ -104,6 +104,13 @@
     </div>
   </div>
 
+  <!-- 新增：下一手參考（非預測） -->
+  <div class="card">
+    <h2>下一手參考（非預測）</h2>
+    <div id="nextRec" class="mono">尚無資料</div>
+    <div class="note">此區僅將常見規則（如跟路/跳路）做成提示，非勝率預測。</div>
+  </div>
+
   <div class="card">
     <h2>資料管理</h2>
     <div class="toolbar">
@@ -116,7 +123,11 @@
 
 <script>
 (() => {
+  /*** 狀態 ***/
   const state = { rounds: [], undoStack: [], redoStack: [] };
+  // 讓外部可讀（給下一手參考面板使用）
+  window.state = state;
+
   const els = {
     sRounds: q('#sRounds'), sP: q('#sP'), sB: q('#sB'), sT: q('#sT'),
     sLongest: q('#sLongest'), sPairs: q('#sPairs'),
@@ -128,24 +139,32 @@
 
   function q(s, r=document){ return r.querySelector(s); }
   function create(tag, cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
+  function on(sel,ev,fn){ q(sel).addEventListener(ev,fn); }
 
+  /*** 事件 ***/
   function bindUI(){
-    on('#btnP','click',()=>add('P')); on('#btnB','click',()=>add('B')); on('#btnT','click',()=>add('T'));
-    on('#undo','click',undo); on('#redo','click',redo); on('#reset','click',resetAll);
+    on('#btnP','click',()=>add('P'));
+    on('#btnB','click',()=>add('B'));
+    on('#btnT','click',()=>add('T'));
+    on('#undo','click',undo);
+    on('#redo','click',redo);
+    on('#reset','click',resetAll);
+
     window.addEventListener('keydown', e=>{
       const k=e.key.toLowerCase();
       if(k==='p') add('P'); else if(k==='b') add('B'); else if(k==='t') add('T');
       else if(k==='z') undo(); else if(k==='y') redo();
     });
+
     on('#exportJson','click', exportJSON);
     on('#importJson','click', ()=> els.importFile.click());
     els.importFile.addEventListener('change', handleImport);
     on('#exportCSV','click', exportCSV);
     on('#copyShare','click', copyShare);
     on('#clearStorage','click', ()=>{ localStorage.removeItem('baccarat_state_v1'); alert('已清除本機資料'); });
-    function on(sel,ev,fn){ q(sel).addEventListener(ev,fn); }
   }
 
+  /*** 操作 ***/
   function add(r){
     const rec = { r, pp: !!els.ppair.checked, bp: !!els.bpair.checked, t: Date.now() };
     state.rounds.push(rec); state.undoStack.push({type:'add',rec}); state.redoStack.length=0;
@@ -155,10 +174,12 @@
   function redo(){ if(!state.redoStack.length) return; const rec=state.redoStack.pop(); state.rounds.push(rec); state.undoStack.push({type:'readd',rec}); saveLocal(); renderAll(); }
   function resetAll(){ if(!confirm('確定要重設所有記錄？')) return; state.rounds.length=0; state.undoStack.length=0; state.redoStack.length=0; saveLocal(); renderAll(); }
 
+  /*** 儲存/載入 ***/
   function saveLocal(){ if(!els.saveLocal.checked) return; try{ localStorage.setItem('baccarat_state_v1', JSON.stringify(state.rounds)); }catch(e){} }
   function loadLocal(){ try{ const raw=localStorage.getItem('baccarat_state_v1'); if(raw){ const arr=JSON.parse(raw); if(Array.isArray(arr)) state.rounds=arr; } }catch(e){} }
   function loadFromHash(){ const h=location.hash.replace(/^#/,''); if(!h) return; try{ const json=atob(decodeURIComponent(h)); const arr=JSON.parse(json); if(Array.isArray(arr)) state.rounds=arr; }catch(e){} }
 
+  /*** 渲染 ***/
   function renderAll(){
     const counts={P:0,B:0,T:0,pp:0,bp:0}; let longestP=0,longestB=0; let cur=null,curLen=0; const streaks=[];
     state.rounds.forEach(rec=>{
@@ -173,8 +194,12 @@
     els.sPairs.textContent = counts.pp + ' / ' + counts.bp; els.sLongest.textContent = longestP + ' / ' + longestB;
 
     renderBigRoad();
+    renderNextRec(); // ← 新增：更新下一手參考
   }
+  // 對外暴露（如需）
+  window.renderAll = renderAll;
 
+  /*** 大路 ***/
   function renderBigRoad(){
     const grid = els.bigroadGrid; grid.innerHTML='';
     const cols=[]; let col=0,row=0; let lastColor=null;
@@ -208,6 +233,7 @@
     });
   }
 
+  /*** 匯入/匯出 ***/
   function exportJSON(){ const data=JSON.stringify(state.rounds,null,2); download('baccarat_data.json',data,'application/json'); }
   function handleImport(ev){
     const f=ev.target.files&&ev.target.files[0]; if(!f) return;
@@ -228,11 +254,40 @@
   }
   function download(name,content,mime){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type:mime})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1500); }
 
+  // 綁定匯出/匯入按鈕（確保存在）
   q('#exportCSV').addEventListener('click', exportCSV);
   q('#exportJson').addEventListener('click', exportJSON);
   q('#importJson').addEventListener('click', ()=> els.importFile.click());
   q('#copyShare').addEventListener('click', copyShare);
 
+  /*** 新增：下一手參考（非預測） ***/
+  function suggestNext(rounds){
+    // 最新連段（忽略和局）
+    let last=null,len=0;
+    for(let i=rounds.length-1;i>=0;i--){
+      const r=rounds[i].r;
+      if(r==='T') continue;
+      if(last===null){ last=r; len=1; }
+      else if(r===last){ len++; }
+      else break;
+    }
+    // 近 N 手偏向
+    const N=20; let P=0,B=0,c=0;
+    for(let i=rounds.length-1;i>=0 && c<N;i--){
+      const r=rounds[i].r; if(r==='P'){P++; c++;} else if(r==='B'){B++; c++;}
+    }
+    const bias = P-B; // 正→偏 P；負→偏 B
+    const rule = (len>=2 ? `跟路（${last} 已連 ${len}）` : (last?`跳路（反 ${last}）`:'無資料'));
+    return {last,len,P,B,bias,rule};
+  }
+  function renderNextRec(){
+    const el = document.getElementById('nextRec');
+    if(!el) return;
+    const s = suggestNext(state.rounds);
+    const tag = s.last ? (s.last==='P'?'玩家(P)':'莊家(B)') : '尚無';
+    el.textContent =
+      `當前連段：${tag} × ${s.len || 0} ｜近20手：P ${s.P} / B ${s.B}（差 ${s.bias>0?'+':''}${s.bias}）｜參考：${s.rule}`;
+  }
 })();
 </script>
 </body>
