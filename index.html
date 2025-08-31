@@ -3,33 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>百家樂分析器（線上版，桌規+機率+圖表）</title>
+<title>百家樂分析器（線上版）</title>
 <style>
-  :root { --bg:#0f1220; --panel:#161a2e; --text:#e8ecff; --muted:#9aa3c7; --accent:#7aa2ff; --danger:#ff6b6b; --ok:#00d68f; }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","PingFang TC","Microsoft JhengHei",Arial,sans-serif; margin:0; }
-  h1 { font-size: 1.25rem; margin: 0; }
-  .app { max-width: 1160px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 1fr; gap: 12px; }
-  .row { display: grid; gap: 12px; }
-  @media (min-width: 980px) { .row { grid-template-columns: 1.15fr 0.85fr; } }
-  .card { background: var(--panel); border-radius: 12px; padding: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
-  .card h2 { font-size: 1.05rem; margin: 0 0 8px; color: var(--accent); }
-  .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-  button {
-    background:#1f2442; color:var(--text); border:1px solid #2b3362; border-radius:10px;
-    padding:10px 12px; cursor:pointer; font-size:.95rem; user-select:none;
-    transition: transform .02s ease, background .2s ease, border-color .2s ease;
-  }
-  button:hover { background:#262c54; } button:active { transform: translateY(1px); }
+  :root { --bg:#0f1220; --panel:#161a2e; --text:#e8ecff; --muted:#9aa3c7; --accent:#7aa2ff; }
+  * { box-sizing:border-box }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","PingFang TC","Microsoft JhengHei",Arial,sans-serif;margin:0}
+  h1{font-size:1.25rem;margin:0}
+  .app{max-width:1160px;margin:0 auto;padding:16px;display:grid;gap:12px}
+  .row{display:grid;gap:12px}
+  @media (min-width: 980px){ .row{grid-template-columns:1.15fr 0.85fr} }
+  .card{background:#161a2e;border-radius:12px;padding:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  .card h2{font-size:1.05rem;margin:0 0 8px;color:var(--accent)}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  button{background:#1f2442;color:var(--text);border:1px solid #2b3362;border-radius:10px;padding:10px 12px;cursor:pointer}
+  button:hover{background:#262c54}
   .bP{background:#1c2f5e;border-color:#2f4ea8}.bB{background:#5e1c1c;border-color:#a82f2f}.bT{background:#185d49;border-color:#2b9a7b}
   .bUndo{background:#3b2b1a;border-color:#7b5a2b}.bReset{background:#462026;border-color:#8b3b46}
-  .switch{display:inline-flex;align-items:center;gap:6px;font-size:.9rem;color:var(--muted)}
+  .switch{display:inline-flex;align-items:center;gap:6px;color:#9aa3c7}
   input[type="checkbox"]{width:18px;height:18px}
   select,input[type="number"]{background:#10152a;color:var(--text);border:1px solid #2b3362;border-radius:8px;padding:8px}
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .stat{background:#12162a;border:1px solid #22294f;border-radius:10px;padding:8px}
   .stat .v{font-size:1.2rem;font-weight:700}
-  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   .roads{display:grid;grid-template-rows:auto 1fr;gap:8px;height:420px}
   .grid{background:#0c1022;border:1px solid #22294f;border-radius:10px;overflow:auto;padding:6px}
   .bigroad{display:grid;grid-auto-flow:column;grid-auto-columns:max-content;gap:2px;align-items:start}
@@ -38,9 +34,10 @@
   .chip{width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.85)}
   .P .chip{background:#2b61ff}.B .chip{background:#ff3b3b}.T .chip{background:#00c19a}
   .pairTag{position:absolute;bottom:-2px;right:-2px;font-size:.65rem;background:rgba(255,255,255,.12);padding:0 4px;border-radius:6px;border:1px solid rgba(255,255,255,.2)}
-  .gridFooter{color:var(--muted);font-size:.85rem;display:flex;justify-content:space-between;align-items:center}
+  .gridFooter{color:#9aa3c7;font-size:.85rem;display:flex;justify-content:space-between;align-items:center}
   canvas{width:100%;height:260px;background:#0c1022;border:1px solid #22294f;border-radius:10px}
-  .note{font-size:.82rem;color:var(--muted)}
+  .note{font-size:.82rem;color:#9aa3c7}
+  .pill{display:inline-block;padding:4px 8px;border:1px solid #2b3362;border-radius:999px;margin-right:6px}
 </style>
 </head>
 <body>
@@ -58,24 +55,41 @@
   <!-- 左右主區 -->
   <div class="row">
     <!-- 左：記錄 + 大路 -->
-    <div class="card">
-      <h2>快速記錄</h2>
-      <div class="toolbar" style="gap:10px; margin-bottom:8px;">
-        <button id="btnP" class="bP">玩家 (P)</button>
-        <button id="btnB" class="bB">莊家 (B)</button>
-        <button id="btnT" class="bT">和局 (T)</button>
-        <span class="switch"><input id="ppair" type="checkbox">玩家對</span>
-        <span class="switch"><input id="bpair" type="checkbox">莊家對</span>
-        <button id="undo" class="bUndo">復原 (Z)</button>
-        <button id="redo" class="bUndo">重做 (Y)</button>
-        <button id="reset" class="bReset">重設</button>
-      </div>
-      <div class="roads">
-        <div class="gridFooter">
-          <div class="note">Big Road（大路）即時落子；和局疊加在上手格子，連莊/連閒自動計算。</div>
-          <div class="note">快捷鍵：P/B/T、Z（復原）、Y（重做）。</div>
+    <div>
+      <div class="card">
+        <h2>快速記錄</h2>
+        <div class="toolbar" style="gap:10px; margin-bottom:8px;">
+          <button id="btnP" class="bP">玩家 (P)</button>
+          <button id="btnB" class="bB">莊家 (B)</button>
+          <button id="btnT" class="bT">和局 (T)</button>
+          <span class="switch"><input id="ppair" type="checkbox">玩家對</span>
+          <span class="switch"><input id="bpair" type="checkbox">莊家對</span>
+          <button id="undo" class="bUndo">復原 (Z)</button>
+          <button id="redo" class="bUndo">重做 (Y)</button>
+          <button id="reset" class="bReset">重設</button>
         </div>
-        <div id="bigroad" class="grid"><div id="bigroadGrid" class="bigroad"></div></div>
+        <div class="roads">
+          <div class="gridFooter">
+            <div class="note">Big Road（大路）即時落子；和局疊加在上手格子，連莊/連閒自動計算。</div>
+            <div class="note">快捷鍵：P/B/T、Z（復原）、Y（重做）。</div>
+          </div>
+          <div id="bigroad" class="grid"><div id="bigroadGrid" class="bigroad"></div></div>
+        </div>
+      </div>
+
+      <!-- ★ 新卡片：放在快速記錄的正下方 -->
+      <div class="card">
+        <h2>下一手參考 + 莊對 / 閒對 / 和局 機率</h2>
+        <div id="nextBlock" class="mono">
+          <div class="pill">當前連段：—</div>
+          <div class="pill">參考：—</div>
+          <div class="pill">近20手：—</div>
+          <div style="margin-top:8px"></div>
+          <div class="pill">莊對：—</div>
+          <div class="pill">閒對：—</div>
+          <div class="pill">和局：—</div>
+        </div>
+        <div class="note">此區為規則提示與機率顯示，僅供參考，非勝率預測。</div>
       </div>
     </div>
 
@@ -115,30 +129,21 @@
       </div>
 
       <div class="note" style="margin-top:8px">
-        <b>提醒：</b>顯示之「理論機率」以常見桌規近似值為基礎；不同場館、混洗或邊界規則會有微差。EV 計算會依你選的賠率/抽水即時更新。
+        顯示之「理論機率」為常見桌規近似值；不同場館規則可能略有差異。
       </div>
     </div>
   </div>
 
-  <!-- 機率面板 -->
+  <!-- 機率面板（理論 vs 樣本） -->
   <div class="card">
     <h2>機率參考（理論 vs. 目前樣本）</h2>
     <div class="mono" id="probPanel">讀取中…</div>
-    <div class="note">「連段延長」為不含和之參考值；此處所有內容皆為紀錄/顯示，<b>非未來預測</b>。</div>
   </div>
 
-  <!-- 圖表 -->
+  <!-- 走勢圖 -->
   <div class="card">
     <h2>近 N 手走勢（P/B/T 比例）</h2>
     <canvas id="trend"></canvas>
-    <div class="note">以你設定的「近 N 手」為視窗，動態繪製 P/B/T 的樣本比例曲線。</div>
-  </div>
-
-  <!-- 下一手參考（非預測） -->
-  <div class="card">
-    <h2>下一手參考（非預測）</h2>
-    <div id="nextRec" class="mono">尚無資料</div>
-    <div class="note">把常見規則（如跟路/跳路）轉為提示字樣，僅供娛樂，非勝率預測。</div>
   </div>
 
   <!-- 資料管理 -->
@@ -154,40 +159,32 @@
 
 <script>
 (() => {
-  /*** 狀態 ***/
   const state = { rounds: [], undoStack: [], redoStack: [], rules: { decks:8, tiePay:8, bankerRule:'commission', winN:50 } };
-  window.state = state; // 讓其他面板取用
+  window.state = state;
 
-  /*** 近似理論機率（依牌副數） ***/
-  // 說明：不同副數會有極小變動，這裡採用常見近似值表（含和）。
+  // 近似理論機率（依副數）
   const THEO_BY_DECKS = {
-    8: { B:0.458597, P:0.446247, T:0.095156, PP:0.074722, BP:0.074722 }, // 任一對≈14.2014%
+    8: { B:0.458597, P:0.446247, T:0.095156, PP:0.074722, BP:0.074722 },
     6: { B:0.4581,   P:0.4465,   T:0.0954,   PP:0.0746,   BP:0.0746 },
-    1: { B:0.4462,   P:0.4462,   T:0.1076,   PP:0.0756,   BP:0.0756 }   // 單副的和略高、勝率更接近
+    1: { B:0.4462,   P:0.4462,   T:0.1076,   PP:0.0756,   BP:0.0756 }
   };
-  // 不含和的條件機率（延長連段參考；近似）
-  const STREAK_EXTEND = { B:0.5068, P:0.4932 };
+  const STREAK_EXTEND = { B:0.5068, P:0.4932 }; // 不含和
 
-  /*** 元素 ***/
   const els = {
-    sRounds:q('#sRounds'), sP:q('#sP'), sB:q('#sB'), sT:q('#sT'),
-    sLongest:q('#sLongest'), sPairs:q('#sPairs'),
-    bigroadGrid:q('#bigroadGrid'), ppair:q('#ppair'), bpair:q('#bpair'),
-    saveLocal:q('#savelocal'), importFile:q('#importFile'),
-    decks:q('#decks'), tiePay:q('#tiePay'), bankerRule:q('#bankerRule'), winN:q('#winN'),
-    trend:q('#trend'), probPanel:q('#probPanel'), nextRec:q('#nextRec')
+    sRounds:qs('#sRounds'), sP:qs('#sP'), sB:qs('#sB'), sT:qs('#sT'),
+    sLongest:qs('#sLongest'), sPairs:qs('#sPairs'),
+    bigroadGrid:qs('#bigroadGrid'), ppair:qs('#ppair'), bpair:qs('#bpair'),
+    saveLocal:qs('#savelocal'), importFile:qs('#importFile'),
+    decks:qs('#decks'), tiePay:qs('#tiePay'), bankerRule:qs('#bankerRule'), winN:qs('#winN'),
+    trend:qs('#trend'), probPanel:qs('#probPanel'), nextBlock:qs('#nextBlock')
   };
 
-  /*** 初始化 ***/
   loadFromHash(); loadLocal(); bindUI(); renderAll();
 
-  /*** 工具 ***/
-  function q(s, r=document){ return r.querySelector(s); }
+  function qs(s, r=document){ return r.querySelector(s); }
   function create(tag, cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
-  function on(sel,ev,fn){ q(sel).addEventListener(ev,fn); }
   function pct(x){ return (x*100).toFixed(2)+'%'; }
 
-  /*** 綁定 ***/
   function bindUI(){
     on('#btnP','click',()=>add('P')); on('#btnB','click',()=>add('B')); on('#btnT','click',()=>add('T'));
     on('#undo','click',undo); on('#redo','click',redo); on('#reset','click',resetAll);
@@ -195,24 +192,22 @@
       const k=e.key.toLowerCase();
       if(k==='p') add('P'); else if(k==='b') add('B'); else if(k==='t') add('T'); else if(k==='z') undo(); else if(k==='y') redo();
     });
-
-    q('#exportJson').addEventListener('click', exportJSON);
-    q('#importJson').addEventListener('click', ()=> els.importFile.click());
+    on('#exportJson','click', exportJSON);
+    on('#importJson','click', ()=> els.importFile.click());
     els.importFile.addEventListener('change', handleImport);
-    q('#exportCSV').addEventListener('click', exportCSV);
-    q('#copyShare').addEventListener('click', copyShare);
-    q('#clearStorage').addEventListener('click', ()=>{ localStorage.removeItem('baccarat_state_v1'); alert('已清除本機資料'); });
-
-    q('#applyRules').addEventListener('click', ()=>{
+    on('#exportCSV','click', exportCSV);
+    on('#copyShare','click', copyShare);
+    on('#clearStorage','click', ()=>{ localStorage.removeItem('baccarat_state_v1'); alert('已清除本機資料'); });
+    on('#applyRules','click', ()=>{
       state.rules.decks = +els.decks.value;
       state.rules.tiePay = +els.tiePay.value;
       state.rules.bankerRule = els.bankerRule.value;
       state.rules.winN = Math.max(10, Math.min(200, +els.winN.value||50));
       saveLocal(); renderAll();
     });
+    function on(sel,ev,fn){ qs(sel).addEventListener(ev,fn); }
   }
 
-  /*** CRUD ***/
   function add(r){
     const rec = { r, pp: !!els.ppair.checked, bp: !!els.bpair.checked, t: Date.now() };
     state.rounds.push(rec); state.undoStack.push({type:'add',rec}); state.redoStack.length=0;
@@ -222,60 +217,44 @@
   function redo(){ if(!state.redoStack.length) return; const rec=state.redoStack.pop(); state.rounds.push(rec); state.undoStack.push({type:'readd',rec}); saveLocal(); renderAll(); }
   function resetAll(){ if(!confirm('確定要重設所有記錄？')) return; state.rounds.length=0; state.undoStack.length=0; state.redoStack.length=0; saveLocal(); renderAll(); }
 
-  /*** 儲存/載入 ***/
-  function saveLocal(){
-    if(els.saveLocal.checked){
-      localStorage.setItem('baccarat_state_v1', JSON.stringify({ rounds:state.rounds, rules:state.rules }));
-    }
-  }
+  function saveLocal(){ if(els.saveLocal.checked) localStorage.setItem('baccarat_state_v1', JSON.stringify({rounds:state.rounds,rules:state.rules})); }
   function loadLocal(){
-    try{
-      const raw=localStorage.getItem('baccarat_state_v1');
-      if(!raw) return;
-      const obj=JSON.parse(raw);
-      if(obj.rounds) state.rounds=obj.rounds;
-      if(obj.rules){ state.rules=obj.rules; els.decks.value=String(obj.rules.decks||8); els.tiePay.value=String(obj.rules.tiePay||8); els.bankerRule.value=obj.rules.bankerRule||'commission'; els.winN.value=String(obj.rules.winN||50); }
-    }catch{}
+    try{ const raw=localStorage.getItem('baccarat_state_v1'); if(!raw) return;
+      const obj=JSON.parse(raw); if(obj.rounds) state.rounds=obj.rounds; if(obj.rules){ state.rules=obj.rules;
+        els.decks.value=String(obj.rules.decks||8); els.tiePay.value=String(obj.rules.tiePay||8);
+        els.bankerRule.value=obj.rules.bankerRule||'commission'; els.winN.value=String(obj.rules.winN||50); } }catch{}
   }
   function loadFromHash(){
     const h=location.hash.replace(/^#/,''); if(!h) return;
     try{ const json=atob(decodeURIComponent(h)); const obj=JSON.parse(json);
-      if(Array.isArray(obj)) state.rounds=obj; // 兼容舊格式
-      else if(obj && Array.isArray(obj.rounds)){ state.rounds=obj.rounds; if(obj.rules) state.rules=obj.rules; }
+      if(Array.isArray(obj)) state.rounds=obj; else if(obj && Array.isArray(obj.rounds)){ state.rounds=obj.rounds; if(obj.rules) state.rules=obj.rules; }
     }catch(e){}
   }
 
-  /*** 渲染 ***/
   function renderAll(){
-    // 統計
-    const counts={P:0,B:0,T:0,pp:0,bp:0}; let longestP=0,longestB=0; let cur=null,curLen=0; const streaks=[];
+    // 基本統計 + 連段
+    const counts={P:0,B:0,T:0,pp:0,bp:0}; let longestP=0,longestB=0; let cur=null,curLen=0;
     state.rounds.forEach(rec=>{
       counts[rec.r]++; if(rec.pp) counts.pp++; if(rec.bp) counts.bp++;
       const k=rec.r; if(k==='T') return;
-      if(cur===k){ curLen++; } else { if(cur){ streaks.push({side:cur,len:curLen}); if(cur==='P') longestP=Math.max(longestP,curLen); else longestB=Math.max(longestB,curLen); } cur=k; curLen=1; }
+      if(cur===k){ curLen++; } else { if(cur){ if(cur==='P') longestP=Math.max(longestP,curLen); else longestB=Math.max(longestB,curLen); } cur=k; curLen=1; }
     });
-    if(cur){ streaks.push({side:cur,len:curLen}); if(cur==='P') longestP=Math.max(longestP,curLen); else longestB=Math.max(longestB,curLen); }
-
+    if(cur){ if(cur==='P') longestP=Math.max(longestP,curLen); else longestB=Math.max(longestB,curLen); }
     els.sRounds.textContent = state.rounds.length;
     els.sP.textContent = counts.P; els.sB.textContent = counts.B; els.sT.textContent = counts.T;
     els.sPairs.textContent = counts.pp + ' / ' + counts.bp; els.sLongest.textContent = longestP + ' / ' + longestB;
 
-    // 大路
     renderBigRoad();
-    // 機率面板
-    renderProbPanel(counts);
-    // 圖表
+    renderNextBlock();
+    renderProbPanel();
     drawTrend();
-    // 下一手參考
-    renderNextRec();
   }
 
-  /*** 大路 ***/
+  // 大路
   function renderBigRoad(){
-    const grid = els.bigroadGrid; grid.innerHTML='';
+    const grid=els.bigroadGrid; grid.innerHTML='';
     const cols=[]; let col=0,row=0; let lastColor=null;
     function ensureCol(i){ while(cols.length<=i) cols.push(Array(6).fill(null)); }
-
     state.rounds.forEach(rec=>{
       if(rec.r==='T'){ if(col>=0){ ensureCol(col); if(row>=0 && cols[col][row]) cols[col][row].ties=(cols[col][row].ties||0)+1; } return; }
       const color=rec.r;
@@ -289,7 +268,6 @@
       }
       lastColor=color;
     });
-
     cols.forEach(column=>{
       const colDiv=create('div','col');
       column.forEach(cell=>{
@@ -304,123 +282,116 @@
     });
   }
 
-  /*** 機率/EV 面板 ***/
+  // 新卡片：下一手參考 + 對子/和 的機率
+  function renderNextBlock(){
+    const decks = state.rules.decks;
+    const theo  = THEO_BY_DECKS[decks] || THEO_BY_DECKS[8];
+
+    // 連段（忽略和）
+    let last=null,len=0;
+    for(let i=state.rounds.length-1;i>=0;i--){
+      const r=state.rounds[i].r; if(r==='T') continue;
+      if(last===null){ last=r; len=1; } else if(r===last){ len++; } else break;
+    }
+    const rule = last ? (len>=2 ? `跟路（${last==='B'?'莊':'閒'} 已連 ${len}）` : `跳路（反 ${last==='B'?'莊':'閒'}）`) : '尚無';
+
+    // 近20手 P/B 統計
+    let P20=0,B20=0,c=0;
+    for(let i=state.rounds.length-1;i>=0 && c<20;i--){
+      const r=state.rounds[i].r; if(r==='P'){P20++; c++;} else if(r==='B'){B20++; c++; }
+    }
+
+    // 對子＆和的理論機率（顯示近似理論值；樣本不一定每局有標對子）
+    const text = `
+      <div class="pill">當前連段：${ last ? (last==='B'?'莊':'閒')+' × '+len : '—' }</div>
+      <div class="pill">參考：${rule}</div>
+      <div class="pill">近20手：P ${P20} / B ${B20}</div>
+      <div style="margin-top:8px"></div>
+      <div class="pill">莊對（理論）：${pct(theo.BP)}</div>
+      <div class="pill">閒對（理論）：${pct(theo.PP)}</div>
+      <div class="pill">和局（理論）：${pct(theo.T)}</div>
+    `;
+    els.nextBlock.innerHTML = text;
+  }
+
+  // 機率面板（理論 vs 樣本 + 近視窗）
   function renderProbPanel(){
     const decks = state.rules.decks;
     const theo = THEO_BY_DECKS[decks] || THEO_BY_DECKS[8];
-    const anyPairTheo = Math.min(1, theo.PP + theo.BP); // 近似
-    // 樣本（全局）
+    const anyPairTheo = Math.min(1, theo.PP + theo.BP);
+
     const n = state.rounds.length;
     let cB=0,cP=0,cT=0,cBP=0,cPP=0;
     for(const r of state.rounds){ if(r.r==='B'){cB++; if(r.bp)cBP++;} else if(r.r==='P'){cP++; if(r.pp)cPP++;} else cT++; }
-    const emp = {
-      B: n? cB/n:0, P: n? cP/n:0, T:n? cT/n:0, BP:n? cBP/n:0, PP:n? cPP/n:0, ANY: n? (cBP+cPP)/n : 0
-    };
-    // 樣本（近 N 手）
+    const emp = { B:n?cB/n:0, P:n?cP/n:0, T:n?cT/n:0, BP:n?cBP/n:0, PP:n?cPP/n:0, ANY:n?(cBP+cPP)/n:0 };
+
     const N = state.rules.winN;
-    let s = state.rounds.slice(-N);
-    let n2 = s.length, eB=0,eP=0,eT=0;
-    for(const r of s){ if(r.r==='B')eB++; else if(r.r==='P')eP++; else eT++; }
+    const s = state.rounds.slice(-N);
+    let n2=s.length, eB=0,eP=0,eT=0;
+    for(const r of s){ if(r.r==='B')eB++; else if(r.r==='P')eP++; else if(r.r==='T')eT++; }
     const empWin = { B:n2?eB/n2:0, P:n2?eP/n2:0, T:n2?eT/n2:0, N };
-
-    // 連段延長參考（不含和）
-    const st = currentStreak(state.rounds);
-    const extend = st.last ? (st.last==='B'?STREAK_EXTEND.B:STREAK_EXTEND.P) : null;
-
-    // EV（每押1單位）：依賠率/抽水
-    const tiePay = state.rules.tiePay;         // 8 或 9
-    const bankerRule = state.rules.bankerRule; // commission or no6half
-    // 下注莊：中莊 +1 抽水5% → +0.95；免抽水6半賠視為平均回報稍降（近似處理）
-    const bWinPay = bankerRule==='commission' ? 0.95 : 1; // 免抽水為 1（但 6 半賠在實際期望會降低，這裡提示文字說明）
-    const EV_B = theo.B * bWinPay - theo.P * 1 - theo.T * 0;
-    const EV_P = theo.P * 1 - theo.B * 1 - theo.T * 0;
-    const EV_T = theo.T * tiePay - (1 - theo.T) * 1;
 
     els.probPanel.innerHTML =
       `<div>【理論(約值)｜${decks} 副】莊 ${pct(theo.B)}｜閒 ${pct(theo.P)}｜和 ${pct(theo.T)}｜莊對 ${pct(theo.BP)}｜閒對 ${pct(theo.PP)}｜任一對 ${pct(anyPairTheo)}</div>
        <div>【樣本(全部${n}手)】莊 ${pct(emp.B)}｜閒 ${pct(emp.P)}｜和 ${pct(emp.T)}｜莊對 ${pct(emp.BP)}｜閒對 ${pct(emp.PP)}｜任一對 ${pct(emp.ANY)}</div>
-       <div>【樣本(近 ${empWin.N} 手)】莊 ${pct(empWin.B)}｜閒 ${pct(empWin.P)}｜和 ${pct(empWin.T)}</div>
-       <div>【連段】目前：${st.last? (st.last==='B'?'莊':'閒')+' × '+st.len : '—'} ｜延長參考(不含和)：${extend? pct(extend):'—'}</div>
-       <div>【EV/單位】押莊 ≈ ${(EV_B).toFixed(3)}；押閒 ≈ ${(EV_P).toFixed(3)}；押和(賠率${tiePay}:1) ≈ ${(EV_T).toFixed(3)}`
-      + (bankerRule==='no6half' ? ` <span class="note">（免抽水 6 半賠規則下，實際莊 EV 會略低於此近似值）</span>` : '') +
-      `</div>`;
+       <div>【樣本(近 ${empWin.N} 手)】莊 ${pct(empWin.B)}｜閒 ${pct(empWin.P)}｜和 ${pct(empWin.T)}</div>`;
   }
 
-  function currentStreak(rounds){
-    let last=null,len=0;
-    for(let i=rounds.length-1;i>=0;i--){
-      const r=rounds[i].r;
-      if(r==='T') continue;
-      if(last===null){ last=r; len=1; }
-      else if(r===last){ len++; }
-      else break;
-    }
-    return {last,len};
-  }
-
-  /*** 圖表（canvas 原生） ***/
+  // 走勢圖（近 N 手）
   function drawTrend(){
-    const canvas = els.trend, ctx = canvas.getContext('2d');
+    const canvas=els.trend, ctx=canvas.getContext('2d');
     const W = canvas.width = canvas.clientWidth * devicePixelRatio;
     const H = canvas.height = canvas.clientHeight * devicePixelRatio;
     ctx.scale(devicePixelRatio, devicePixelRatio);
     ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
 
-    // 滑動視窗
     const N = state.rules.winN, arr = state.rounds;
-    const points = []; // {p,b,t}
-    let p=0,b=0,t=0;
+    const pts=[]; let p=0,b=0,t=0;
     for(let i=0;i<arr.length;i++){
-      const r=arr[i].r;
-      if(r==='P') p++; else if(r==='B') b++; else if(r==='T') t++;
-      if(i>=N){
-        const old=arr[i-N].r;
-        if(old==='P') p--; else if(old==='B') b--; else if(old==='T') t--;
-      }
-      const n = Math.min(i+1,N);
-      points.push({ P:p/n, B:b/n, T:t/n });
+      const r=arr[i].r; if(r==='P')p++; else if(r==='B')b++; else if(r==='T')t++;
+      if(i>=N){ const old=arr[i-N].r; if(old==='P')p--; else if(old==='B')b--; else if(old==='T')t--; }
+      const n=Math.min(i+1,N); pts.push({P:p/n,B:b/n,T:t/n});
     }
-    const pad=18, w=canvas.clientWidth-2*pad, h=canvas.clientHeight-2*pad;
-    function y(v){ return pad + (1 - v) * h; }
-    function x(i){ return pad + (points.length<=1?0:(i/(points.length-1))*w); }
-    function line(key){
-      ctx.beginPath();
-      for(let i=0;i<points.length;i++){
-        const pt=points[i]; const X=x(i), Y=y(pt[key]||0);
-        if(i===0) ctx.moveTo(X,Y); else ctx.lineTo(X,Y);
-      }
-      ctx.lineWidth=2;
-      // 不指定顏色（系統會用預設顏色渲染）
-      ctx.stroke();
-    }
-    // 軸
-    ctx.globalAlpha=.35; ctx.beginPath();
-    for(let k=0;k<=5;k++){ const yy=y(k/5); ctx.moveTo(pad,yy); ctx.lineTo(pad+w,yy); }
-    ctx.stroke(); ctx.globalAlpha=1;
-    // 三條線
-    line('P'); line('B'); line('T');
-    // 標示
-    ctx.fillStyle='#e8ecff'; ctx.fillText('P / B / T（近 N 手）', pad, pad-4);
+    const pad=18,w=canvas.clientWidth-2*pad,h=canvas.clientHeight-2*pad;
+    function y(v){ return pad + (1-v)*h } function x(i){ return pad + (pts.length<=1?0:(i/(pts.length-1))*w) }
+    function line(key){ ctx.beginPath(); for(let i=0;i<pts.length;i++){ const X=x(i),Y=y(pts[i][key]||0); if(i===0)ctx.moveTo(X,Y); else ctx.lineTo(X,Y) } ctx.lineWidth=2; ctx.stroke(); }
+    ctx.globalAlpha=.35; ctx.beginPath(); for(let k=0;k<=5;k++){ const yy=y(k/5); ctx.moveTo(pad,yy); ctx.lineTo(pad+w,yy) } ctx.stroke(); ctx.globalAlpha=1;
+    line('P'); line('B'); line('T'); ctx.fillText('P / B / T（近 N 手）', pad, pad-4);
   }
 
-  /*** 下一手參考（非預測） ***/
-  function suggestNext(rounds){
-    let last=null,len=0;
-    for(let i=rounds.length-1;i>=0;i--){
-      const r=rounds[i].r;
-      if(r==='T') continue;
-      if(last===null){ last=r; len=1; }
-      else if(r===last){ len++; }
-      else break;
-    }
-    const N=20; let P=0,B=0,c=0;
-    for(let i=rounds.length-1;i>=0 && c<N;i--){
-      const r=rounds[i].r; if(r==='P'){P++; c++;} else if(r==='B'){B++; c++;}
-    }
-    const bias=P-B;
-    const rule=(len>=2?`跟路（${last} 已連 ${len}）`:(last?`跳路（反 ${last}）`:'無資料'));
-    return {last,len,P,B,bias,rule};
+  // 匯出／匯入／分享
+  function exportJSON(){ const data=JSON.stringify({rounds:state.rounds,rules:state.rules},null,2); download('baccarat_data.json',data,'application/json'); }
+  function handleImport(ev){
+    const f=ev.target.files&&ev.target.files[0]; if(!f) return;
+    const reader=new FileReader(); reader.onload=e=>{
+      try{ const obj=JSON.parse(String(e.target.result));
+        if(Array.isArray(obj)) state.rounds=obj; else if(obj && Array.isArray(obj.rounds)){ state.rounds=obj.rounds; if(obj.rules) state.rules=obj.rules; }
+        saveLocal(); renderAll(); alert('匯入完成！');
+      } catch(err){ alert('讀取失敗：'+err.message); }
+    }; reader.readAsText(f);
   }
-  function renderNextRec(){
-    const s=suggestNext(state.rounds);
-    const tag=s.last ? (s.last==='
+  function exportCSV(){
+    const header='index,time,result,player_pair,banker_pair\n';
+    const rows=state.rounds.map((r,i)=>[i+1,new Date(r.t).toISOString(),r.r,r.pp?1:0,r.bp?1:0].join(','));
+    const csv=header+rows.join('\n'); download('baccarat_data.csv',csv,'text/csv');
+  }
+  function copyShare(){
+    const json=JSON.stringify({rounds:state.rounds,rules:state.rules});
+    const hash=encodeURIComponent(btoa(json));
+    const url=location.origin+location.pathname+'#'+hash;
+    navigator.clipboard.writeText(url).then(()=>alert('已複製分享連結（資料僅存在網址中）'),()=>alert('無法複製，請手動選取網址：\n'+url));
+  }
+  function download(name,content,mime){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type:mime})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1500); }
+
+  // 綁定最後
+  qs('#exportCSV').addEventListener('click', exportCSV);
+  qs('#exportJson').addEventListener('click', exportJSON);
+  qs('#importJson').addEventListener('click', ()=> els.importFile.click());
+
+  // 輔助
+  function on(sel,ev,fn){ qs(sel).addEventListener(ev,fn) }
+
+})();
+</script>
+</body>
+</html>
